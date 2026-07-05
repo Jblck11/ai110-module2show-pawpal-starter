@@ -4,8 +4,39 @@
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+My initial UML design breaks PawPal+ into five classes that follow the natural flow of
+the scenario: capture tasks → apply the owner's constraints → produce an explained plan.
+The data classes (`Owner`, `Pet`, `CareTask`) hold information, while `Scheduler` and
+`DailyPlan` separate the *logic* of building a plan from the *result* it produces. I kept
+the scheduling algorithm out of the plan object on purpose so I can test the logic without
+touching any display code.
+
+The five classes and their responsibilities:
+
+- **`CareTask`** — Represents one unit of pet care (walk, feeding, meds, grooming). Holds
+  its `title`, `duration_minutes`, `priority`, optional `preferred_time`, `recurrence`, and
+  `category`. It knows how to score its own priority (`priority_score()`) and whether it is
+  due on a given day (`is_due_today()`).
+
+- **`Pet`** — Represents the animal the tasks belong to. Holds a `name`, `species`, and its
+  list of `CareTask`s. Responsible for managing its own tasks (`add_task`, `remove_task`) and
+  reporting which tasks are due today (`tasks_due`).
+
+- **`Owner`** — Represents the user and their constraints. Holds the owner's `name`, their
+  `pets`, the `available_minutes` for the day, and a `preferences` dictionary. Responsible for
+  gathering all tasks due across every pet (`all_tasks_due`).
+
+- **`Scheduler`** — The "brain" of the system. Takes an `Owner` and a `day`, then builds the
+  plan (`build_plan`) by sorting tasks on priority (`_sort_tasks`) and fitting them into the
+  available time (`_fits`). This is where the constraint logic lives.
+
+- **`DailyPlan`** — The output. Holds the `scheduled` tasks, the `skipped` tasks, and the
+  `reasons` for each decision. Responsible for explaining the plan (`explain`), rendering it
+  for the UI (`to_table`), and reporting total time (`total_time`) — this covers the
+  "explain why it chose that plan" requirement.
+
+Relationships: an `Owner` *has* many `Pet`s, and a `Pet` *has* many `CareTask`s
+(aggregation). The `Scheduler` reads an `Owner` and *produces* a `DailyPlan`.
 
 **b. Design changes**
 

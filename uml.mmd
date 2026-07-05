@@ -1,0 +1,53 @@
+classDiagram
+    class CareTask {
+        +str title
+        +int duration_minutes
+        +str priority
+        +str preferred_time
+        +str recurrence
+        +str category
+        +priority_score() int
+        +is_due_today(day) bool
+        +__str__() str
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +list~CareTask~ tasks
+        +add_task(task) None
+        +remove_task(task) None
+        +tasks_due(day) list~CareTask~
+    }
+
+    class Owner {
+        +str name
+        +list~Pet~ pets
+        +int available_minutes
+        +dict preferences
+        +add_pet(pet) None
+        +all_tasks_due(day) list~CareTask~
+    }
+
+    class Scheduler {
+        +Owner owner
+        +str day
+        +build_plan() DailyPlan
+        -_sort_tasks(tasks) list~CareTask~
+        -_fits(task, remaining_time) bool
+    }
+
+    class DailyPlan {
+        +list scheduled
+        +list~CareTask~ skipped
+        +dict reasons
+        +explain() str
+        +to_table() list
+        +total_time() int
+    }
+
+    Owner "1" o-- "*" Pet : has
+    Pet "1" o-- "*" CareTask : has
+    Scheduler "1" --> "1" Owner : reads
+    Scheduler ..> DailyPlan : produces
+    DailyPlan "1" o-- "*" CareTask : references
