@@ -62,19 +62,41 @@ Skipped 1 task(s) that didn't fit.
 
 ## 🧪 Testing PawPal+
 
+Run the full test suite from the project root:
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
 
-Sample test output:
+**What the tests cover** (`tests/test_pawpal.py`, 13 tests):
+
+- **Basics** — marking a task complete flips its status; adding a task grows a pet's task list.
+- **Sorting correctness** — `sort_by_time()` returns tasks in chronological order, with untimed tasks last.
+- **Filtering** — `filter_tasks()` narrows tasks by pet name and by completion status.
+- **Recurrence logic** — completing a daily task creates a new one due the next day; weekly → +7 days; a one-off ("once") task creates none.
+- **Conflict detection** — `detect_conflicts()` flags two tasks at the same time and returns nothing when times are unique.
+- **Edge cases** — tasks over the time budget are skipped (not crammed in), and a pet with no tasks produces an empty, non-crashing plan.
+
+Successful test run:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.13.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Serap\Documents\ai110class\ai110-module2show-pawpal-starter
+collected 13 items
+
+tests\test_pawpal.py .............                                       [100%]
+
+============================= 13 passed in 0.02s ==============================
 ```
+
+**Confidence Level: ⭐⭐⭐⭐☆ (4/5)**
+
+All 13 tests pass, covering every core behavior (scheduling, sorting, filtering,
+recurrence, conflict detection) plus the main edge cases. I held back the fifth star
+because conflict detection only catches exact same-time clashes (not overlapping
+durations), and the recurrence/`is_due_today` logic does not yet do real calendar-based
+weekly checks — both are known, documented limitations rather than untested code.
 
 ## 📐 Smarter Scheduling
 
