@@ -4,8 +4,7 @@
 
 **a. Initial design**
 
-My initial UML design breaks PawPal+ into five classes that follow the natural flow of
-the scenario: capture tasks → apply the owner's constraints → produce an explained plan.
+My initial UML design breaks PawPal+ into five classes that follow the natural flow of the scenario: capture tasks , apply the owner's constraints and produce an explained plan.
 The data classes (`Owner`, `Pet`, `CareTask`) hold information, while `Scheduler` and
 `DailyPlan` separate the *logic* of building a plan from the *result* it produces. I kept
 the scheduling algorithm out of the plan object on purpose so I can test the logic without
@@ -54,8 +53,16 @@ Relationships: an `Owner` *has* many `Pet`s, and a `Pet` *has* many `CareTask`s
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+One deliberate tradeoff is in `Scheduler.detect_conflicts()`: it only flags tasks that
+share the **exact same start time**, not tasks whose durations actually *overlap*. A
+30-minute walk at 08:00 and a feeding at 08:15 collide in real life, but my scheduler
+won't warn about them because their start times differ.
+
+I chose exact matching on purpose to keep the check lightweight — bucket tasks by start
+time, warn when a bucket has more than one. It never crashes and is easy to test. This is
+reasonable for PawPal+ because the goal is to *nudge* a busy owner, not run a strict
+calendar, and most real double-bookings happen at the same obvious slot (e.g. two tasks
+both at 08:00). True overlap detection would be a good next iteration.
 
 ---
 

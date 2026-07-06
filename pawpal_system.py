@@ -13,7 +13,7 @@ Class overview:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 
 # Map priority strings to sortable numbers (higher = more urgent).
@@ -35,6 +35,7 @@ class CareTask:
     recurrence: str = "daily"          # "daily" | "weekly" | "once"
     category: str = "general"          # walk, feeding, meds, grooming, ...
     completed: bool = False
+    due_date: date | None = None       # when this occurrence is due
 
     def priority_score(self) -> int:
         """Return a sortable integer for this task's priority (unknown -> 0)."""
@@ -58,6 +59,34 @@ class CareTask:
     def mark_incomplete(self) -> None:
         """Reset this task to not complete."""
         self.completed = False
+
+    def next_due_date(self) -> date | None:
+        """Return the next due date based on recurrence; None if it doesn't repeat."""
+        base = self.due_date or date.today()
+        if self.recurrence == "daily":
+            return base + timedelta(days=1)   # daily -> today + 1 day
+        if self.recurrence == "weekly":
+            return base + timedelta(weeks=1)  # weekly -> today + 7 days
+        return None                           # "once" tasks do not recur
+
+    def next_occurrence(self) -> "CareTask | None":
+        """Return a fresh, incomplete copy of this task for its next due date.
+
+        Returns None for one-off ("once") tasks, which have no next occurrence.
+        """
+        upcoming = self.next_due_date()
+        if upcoming is None:
+            return None
+        return CareTask(
+            title=self.title,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            preferred_time=self.preferred_time,
+            recurrence=self.recurrence,
+            category=self.category,
+            completed=False,
+            due_date=upcoming,
+        )
 
     def __str__(self) -> str:
         """Return a readable label for use in the plan display."""
@@ -161,6 +190,85 @@ class Scheduler:
     def _fits(self, task: CareTask, remaining_time: int) -> bool:
         """Return True if the task fits within the remaining time budget."""
         return task.duration_minutes <= remaining_time
+
+    def complete_task(self, task: CareTask) -> "CareTask | None":
+        """Mark a task complete; auto-create its next occurrence on the owning pet.
+
+        For daily/weekly tasks, a fresh instance dated for the next occurrence is
+        added to whichever pet owns the task. Returns that new task (or None for
+        one-off tasks, which do not repeat).
+        """
+        task.mark_complete()
+        upcoming = task.next_occurrence()
+        if upcoming is not None:
+            for pet in self.owner.pets:
+                if task in pet.tasks:
+                    pet.add_task(upcoming)
+                    break
+        return upcoming
+
+    def detect_conflicts(self) -> list[str]:
+        """Return warning messages for tasks scheduled at the same preferred_time.
+
+        Lightweight check: pending tasks (across all pets) that share the same
+        clock time are flagged, whether they belong to the same pet or different
+        ones. Returns a list of warning strings and never raises, so the caller
+        can print warnings without crashing the program. No timed conflicts
+        returns an empty list.
+        """
+        by_time: dict[str, list[str]] = {}
+        for pet in self.owner.pets:
+            for task in pet.tasks:
+                if task.completed or not task.preferred_time:
+                    continue  # done or untimed tasks can't conflict
+                by_time.setdefault(task.preferred_time, []).append(
+                    f"{task.title} ({pet.name})"
+                )
+
+        warnings: list[str] = []
+        for time_str in sorted(by_time):
+            labels = by_time[time_str]
+            if len(labels) > 1:
+                warnings.append(
+                    f"Conflict at {time_str}: "
+                    + ", ".join(labels)
+                    + " are scheduled at the same time."
+                )
+        return warnings
+
+    def _all_tasks(self) -> list[CareTask]:
+        """Return every task across all of the owner's pets."""
+        return [task for pet in self.owner.pets for task in pet.tasks]
+
+    @staticmethod
+    def _time_key(time_str: str | None) -> tuple[int, int]:
+        """Turn a 'HH:MM' string into a sortable (bucket, minutes) key; untimed last."""
+        if not time_str:
+            return (1, 0)  # tasks with no preferred_time sort after timed ones
+        hours, minutes = time_str.split(":")
+        return (0, int(hours) * 60 + int(minutes))
+
+    def sort_by_time(self, tasks: list[CareTask] | None = None) -> list[CareTask]:
+        """Return tasks sorted by their preferred_time ('HH:MM'); untimed tasks last."""
+        if tasks is None:
+            tasks = self._all_tasks()
+        return sorted(tasks, key=lambda t: self._time_key(t.preferred_time))
+
+    def filter_tasks(
+        self,
+        completed: bool | None = None,
+        pet_name: str | None = None,
+    ) -> list[CareTask]:
+        """Return tasks across pets, optionally filtered by completion and/or pet name."""
+        results: list[CareTask] = []
+        for pet in self.owner.pets:
+            if pet_name is not None and pet.name != pet_name:
+                continue
+            for task in pet.tasks:
+                if completed is not None and task.completed != completed:
+                    continue
+                results.append(task)
+        return results
 
 
 @dataclass

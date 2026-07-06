@@ -78,14 +78,16 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+These are the scheduling features implemented in the logic layer (`pawpal_system.py`),
+each with the method that implements it.
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Priority scheduling | `Scheduler.build_plan()`, `Scheduler._sort_tasks()` | Sorts tasks by priority (high → low), packs them into the owner's `available_minutes`, and skips any that don't fit. |
+| Sorting by time | `Scheduler.sort_by_time()` | Orders tasks by their `preferred_time` ("HH:MM"). Uses a lambda key that converts each time to total minutes; untimed tasks sort last. |
+| Filtering | `Scheduler.filter_tasks(completed=..., pet_name=...)` | Returns tasks across all pets, optionally filtered by completion status and/or pet name. Both filters are optional and combinable. |
+| Conflict detection | `Scheduler.detect_conflicts()` | Lightweight check that flags tasks sharing the same start time (same pet or different pets). Returns a list of warning strings and never raises. Detects exact-time clashes, not duration overlaps. |
+| Recurring tasks | `Scheduler.complete_task()`, `CareTask.next_occurrence()`, `CareTask.next_due_date()` | Completing a daily/weekly task auto-creates a fresh instance for the next occurrence (daily → +1 day, weekly → +7 days via `timedelta`). One-off ("once") tasks do not repeat. |
 
 ## 📸 Demo Walkthrough
 
